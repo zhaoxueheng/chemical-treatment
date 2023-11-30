@@ -1,0 +1,39 @@
+## 生殖细胞
+gc <- subset(scRNA, celltype == "SPG" | celltype == "SPC" |
+                celltype == "SPD")
+
+gc <- NormalizeData(gc, verbose = F)
+gc <- FindVariableFeatures(gc, selection.method = "vst", nfeatures = 2000)
+gc <- ScaleData(gc, verbose = F)
+gc <- RunPCA(gc, npcs = 30, verbose = F)
+
+gc <- RunUMAP(gc, reduction = "pca", dims = 1:30)
+gc <- FindNeighbors(gc, reduction = "pca", dims = 1:30)
+gc <- FindClusters(gc, resolution = 0.2)
+
+pgc1 <- DimPlot(gc, reduction = "umap", group.by = "celltype", cols = pal_npg("nrc")(8))
+pgc2 <- DimPlot(gc, reduction = "umap", group.by = "Group", cols = pal_npg("nrc")(8))
+
+
+## 提取需要的细胞
+soc <- subset(scRNA, celltype == "ST" | celltype == "PTM" |
+               celltype == "LD")
+
+soc <- NormalizeData(soc, verbose = F)
+soc <- FindVariableFeatures(soc, selection.method = "vst", nfeatures = 2000)
+soc <- ScaleData(soc, verbose = F)
+soc <- RunPCA(soc, npcs = 30, verbose = F)
+
+soc <- RunUMAP(soc, reduction = "pca", dims = 1:30)
+soc <- FindNeighbors(soc, reduction = "pca", dims = 1:30)
+soc <- FindClusters(soc, resolution = 0.2)
+
+psc1 <- DimPlot(soc, reduction = "umap", group.by = "celltype", cols = pal_npg("nrc")(8))
+psc2 <- DimPlot(soc, reduction = "umap", group.by = "Group", cols = pal_npg("nrc")(8))
+
+plot_grid(pgc1, pgc2, psc1, psc2, nrow = 1)
+
+
+
+
+

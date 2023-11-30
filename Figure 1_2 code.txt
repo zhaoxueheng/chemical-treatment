@@ -1,0 +1,155 @@
+library(Seurat)
+library(dplyr)
+library(cowplot)
+library(ggplot2)
+
+getwd()
+# Load the dataset
+set.seed(123) 
+
+N1 <- Read10X(data.dir = "C:/Users/Administrator/Desktop/Treat/N1", gene.column = 1)
+N1 <- CreateSeuratObject(counts = N1, project = "N1", min.cells = 3, min.features = 200)
+
+N2 <- Read10X(data.dir = "C:/Users/Administrator/Desktop/Treat/N2", gene.column = 1)
+N2 <- CreateSeuratObject(counts = N2, project = "N2", min.cells = 3, min.features = 200)
+
+N3 <- Read10X(data.dir = "C:/Users/Administrator/Desktop/Treat/N3", gene.column = 1)
+N3 <- CreateSeuratObject(counts = N3, project = "N3", min.cells = 3, min.features = 200)
+
+T1 <- Read10X(data.dir = "C:/Users/Administrator/Desktop/Treat/T1", gene.column = 1)
+T1 <- CreateSeuratObject(counts = T1, project = "T1", min.cells = 3, min.features = 200)
+
+T2 <- Read10X(data.dir = "C:/Users/Administrator/Desktop/Treat/T2", gene.column = 1)
+T2 <- CreateSeuratObject(counts = T2, project = "T2", min.cells = 3, min.features = 200)
+
+T3 <- Read10X(data.dir = "C:/Users/Administrator/Desktop/Treat/T3", gene.column = 1)
+T3 <- CreateSeuratObject(counts = T3, project = "T3", min.cells = 3, min.features = 200)
+
+# 
+N1[["percent.mt"]] <- PercentageFeatureSet(N1, pattern = "^MT-")
+N2[["percent.mt"]] <- PercentageFeatureSet(N2, pattern = "^MT-")
+N3[["percent.mt"]] <- PercentageFeatureSet(N3, pattern = "^MT-")
+
+T1[["percent.mt"]] <- PercentageFeatureSet(T1, pattern = "^MT-")
+T2[["percent.mt"]] <- PercentageFeatureSet(T2, pattern = "^MT-")
+T3[["percent.mt"]] <- PercentageFeatureSet(T3, pattern = "^MT-")
+
+
+VlnPlot(N1, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+VlnPlot(N2, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+VlnPlot(N3, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+VlnPlot(T1, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+VlnPlot(T2, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+VlnPlot(T3, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+N1 <- subset(N1, subset = nFeature_RNA > 400 & nFeature_RNA < 7000 & percent.mt < 15)
+N2 <- subset(N2, subset = nFeature_RNA > 400 & nFeature_RNA < 7000 & percent.mt < 15)
+N3 <- subset(N3, subset = nFeature_RNA > 400 & nFeature_RNA < 7000 & percent.mt < 15)
+
+T1 <- subset(T1, subset = nFeature_RNA > 400 & nFeature_RNA < 7000 & percent.mt < 15)
+T2 <- subset(T2, subset = nFeature_RNA > 400 & nFeature_RNA < 7000 & percent.mt < 15)
+T3 <- subset(T3, subset = nFeature_RNA > 400 & nFeature_RNA < 7000 & percent.mt < 15)
+
+scRNA <- merge(N1, y=c(N2, N3, T1, T2, T3))
+
+scRNA <- NormalizeData(scRNA, verbose = F)
+scRNA <- FindVariableFeatures(scRNA, selection.method = "vst", nfeatures = 2000)
+scRNA <- ScaleData(scRNA, verbose = F)
+scRNA <- RunPCA(scRNA, npcs = 30, verbose = F)
+
+scRNA <- RunUMAP(scRNA, reduction = "pca", dims = 1:30)
+scRNA <- FindNeighbors(scRNA, reduction = "pca", dims = 1:30)
+scRNA <- FindClusters(scRNA, resolution = 0.2)
+scRNA <- FindClusters(scRNA, resolution = 1.5)
+
+dim(scRNA)
+rm(N1, N2, N3, T1, T2, T3)
+
+## markergene注释细胞亚群
+DefaultAssay(scRNA) <- "RNA"
+
+library(ggsci)
+library(ggplot2)
+library(ggpubr)
+d1 <- DimPlot(scRNA,reduction = "umap", label = T, cols = pal_npg("nrc")(8))
+d2 <- DimPlot(scRNA,reduction = "umap", group.by = "orig.ident", cols = pal_npg("nrc")(8))
+d2+d1
+
+DimPlot(scRNA,reduction = "umap", split.by = "orig.ident")
+
+table(scRNA@meta.data$orig.ident) 
+
+
+# Macrophages/Monocytes
+FeaturePlot(combined, features = c("MS4A6A","CSF1R","CD14"))
+
+# T cells
+FeaturePlot(combined, features = c("CD2", "CD3D", "CD3G"))
+
+# sertoli
+FeaturePlot(combined, features = "SOX9")
+FeaturePlot(combined, features = "WT1")
+
+# leydig
+FeaturePlot(combined, features = "STAR")
+FeaturePlot(combined, features = "CYP11A1")
+
+# spg
+FeaturePlot(combined, features = "TCF3")
+FeaturePlot(combined, features = "GFRA1")
+
+# spc
+FeaturePlot(combined, features = "SYCP3")
+FeaturePlot(combined, features = "SYCP1")
+FeaturePlot(combined, features = "SMC1B")
+
+# spd
+FeaturePlot(combined, features = c("TNP1", "PRM2", "PRM1","PRM3"))
+
+# Myoid cell
+FeaturePlot(combined, features = c("MYH11", "PTCH1", "PTCH2"))
+
+
+
+
+# 添加细胞类型
+scRNA@meta.data$celltype[scRNA@meta.data$RNA_snn_res.0.2 == 7]=c("Immune")
+
+scRNA@meta.data$celltype[scRNA@meta.data$RNA_snn_res.0.2 == 6]=c("LD")
+
+scRNA@meta.data$celltype[scRNA@meta.data$RNA_snn_res.0.2 == 5]=c("PTM")
+
+scRNA@meta.data$celltype[scRNA@meta.data$RNA_snn_res.0.2 == 0]=c("ST")
+scRNA@meta.data$celltype[scRNA@meta.data$RNA_snn_res.0.2 == 2]=c("ST")
+
+scRNA@meta.data$celltype[scRNA@meta.data$RNA_snn_res.0.2 == 1]=c("SPG")
+
+scRNA@meta.data$celltype[scRNA@meta.data$RNA_snn_res.0.2 == 3]=c("SPC")
+
+scRNA@meta.data$celltype[scRNA@meta.data$RNA_snn_res.0.2 == 4]=c("SPD")
+
+scRNA@meta.data$celltype[scRNA@meta.data$RNA_snn_res.1.5 == 21]=c("Macrophage")
+scRNA@meta.data$celltype[scRNA@meta.data$RNA_snn_res.1.5 == 27]=c("T")
+
+
+# 绘图
+library(ggsci)
+p1 <- DimPlot(scRNA, reduction = "umap", 
+              group.by = "orig.ident", cols = pal_npg("nrc")(6))
+
+p2 <- DimPlot(scRNA, reduction = "umap", group.by = "celltype", cols = pal_npg("nrc")(8))
+
+p3 <- DimPlot(scRNA, reduction = "umap", split.by = "orig.ident", 
+        group.by = "celltype", cols = pal_npg("nrc")(8), ncol = 3)
+
+
+library(scRNAtoolVis)
+library(scales)
+
+p4 <- cellRatioPlot(object = scRNA,
+                    sample.name = "orig.ident",
+                    celltype.name = "celltype",
+                    fill.col = pal_npg("nrc")(8))
+
+plot_grid(p1, p2, p4, nrow = 1)
