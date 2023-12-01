@@ -1,0 +1,34 @@
+st <- subset(scRNA, celltype == "ST")
+
+Idents(st)<- "Group"
+stmkr <- FindAllMarkers(st, only.pos = T, min.pct = 0.25, logfc.threshold = 0.5)
+
+
+library(ClusterGVis)
+library(org.Hs.eg.db)
+library(ggplot2)
+st.data <- prepareDataFromscRNA(object = st,
+                                diffData = stmkr,
+                                showAverage = T)
+
+enrich <- enrichCluster(object = st.data,
+                        OrgDb = org.Hs.eg.db,
+                        type = "BP",
+                        organism = "hsa",
+                        pvalueCutoff = 0.5,
+                        topn = 10,
+                        seed = 5201314)
+
+
+
+
+pdf('GO.pdf',height = 12,width = 10,onefile = F)
+visCluster(object = st.data,
+           plot.type = "both",
+           cluster.order = c(1:3),
+           annoTerm.data = enrich,
+           line.side = "left",
+           # go.col = rep(jjAnno::useMyCol("stallion",n = 3),each = 10),
+           add.bar = T
+)
+dev.off()
